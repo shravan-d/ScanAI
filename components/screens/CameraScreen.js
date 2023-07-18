@@ -1,12 +1,13 @@
 import 'react-native-reanimated'
 import { React, useRef, useState, useEffect} from 'react';
 import { detectObjects } from 'vision-camera-realtime-object-detection';
-import {StyleSheet, View, Dimensions, Text} from 'react-native';
+import {StyleSheet, View, Dimensions, Text, TouchableOpacity} from 'react-native';
 import { useCameraDevices, Camera, useFrameProcessor } from 'react-native-vision-camera';
 import Reanimated, { runOnJS, interpolate, Extrapolate, useSharedValue, useAnimatedProps, useAnimatedStyle, useAnimatedGestureHandler } from 'react-native-reanimated';
 import Animated from 'react-native-reanimated';
 import {GestureHandlerRootView} from 'react-native-gesture-handler'
 import { PanGestureHandler } from 'react-native-gesture-handler';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera)
 Reanimated.addWhitelistedNativeProps({
@@ -21,7 +22,8 @@ var screenWidth = Dimensions.get('window').width;
 const CameraScreen = ( ) => {
   const [camPerm, setCamPerm] = useState('not-determined');
   const [focusPos, setFocusPos] = useState({x: -1, y: -1, show: false});
-  const [objects, setObjects] = useState([]);
+  const [object, setObject] = useState(null);
+  const [newObject, setNewObject] = useState(null);
 
   const frameProcessorConfig = {
     modelFile: 'lite-model_efficientdet_lite4_detection_metadata_2.tflite',
@@ -30,19 +32,40 @@ const CameraScreen = ( ) => {
     numThreads: 4,
   };
 
+  const updateObjects = (object, detectedObjects) => {
+    if (detectedObjects.length == 0){
+      setNewObject(null);
+      return;
+    }
+    setNewObject({ 
+      top: detectedObjects[0].top * screenHeight - 40, 
+      left: detectedObjects[0].left * screenWidth - 40, 
+      width: detectedObjects[0].width * screenWidth + 80, 
+      height: detectedObjects[0].height * screenHeight + 80, 
+      labels: detectedObjects[0].labels 
+    })
+  }
+
   const frameProcessor = useFrameProcessor((frame) => {
     'worklet';
     const detectedObjects = detectObjects(frame, frameProcessorConfig);
-    runOnJS(setObjects)(
-      detectedObjects.map((obj) => ({
-        ...obj,
-        top: obj.top * screenHeight - 50,
-        left: obj.left * screenWidth - 50,
-        width: obj.width * screenWidth + 100,
-        height: obj.height * screenHeight + 100,
-      }))
-    );
+    runOnJS(updateObjects)(object, detectedObjects);
   }, []);
+
+
+  useEffect(() => {
+    if (object === null)
+      setObject(newObject)
+    else {
+      if (newObject === null)
+        setObject(null)
+      else if (Math.abs(object.top - newObject.top) > 0.1*screenHeight || 
+        Math.abs(object.left - newObject.left) > 0.05*screenWidth || 
+        Math.abs(object.width - newObject.width) > 0.05*screenWidth || 
+        Math.abs(object.height - newObject.height) > 0.1*screenHeight )
+        setObject(newObject)
+    }
+  }, [newObject])
 
   const getCamPermission = async () => {
     let status = await Camera.getCameraPermissionStatus();
@@ -140,7 +163,7 @@ const CameraScreen = ( ) => {
           video={false}
           audio={false}
           animatedProps={animatedProps}
-          frameProcessorFps={1}
+          frameProcessorFps={2}
           frameProcessor={frameProcessor} 
         />
         <View style={styles.zoomContainer}>
@@ -152,17 +175,18 @@ const CameraScreen = ( ) => {
           <Animated.View style={[animatedHeightStyle2, {marginTop: 15, width: 2, height: zoomBarHeight-15, backgroundColor: 'white', borderRadius: 5, position: 'absolute', top: zoomBarHeight/2}]}></Animated.View>
         </View>
         {focusPos.show && <View style={[styles.focusBox, {top:focusPos.y, left: focusPos.x}]}></View>}
-
-        {objects?.map(
-        ( { top, left, width, height, labels }, index ) => (
-          <View key={`${index}`} style={[styles.detectionFrame, { top, left, width, height }]} >
-            <Text style={styles.detectionFrameLabel}>
-              {labels.map((label) => `${label.label} (${label.confidence.toFixed(2)})`).join(',')}
-            </Text>
+        {object && 
+        <>
+          <View style={[styles.detectionFrame, { top: object.top, left: object.left, width: object.width, height: object.height }]}></View>
+          <View style={styles.detectionFrameLabel}>
+            <Text style={{textTransform: 'capitalize', fontSize: 18}}>{object.labels[0].label}</Text>
+            <Text style={{fontSize: 18}}>{object.labels[0].confidence.toFixed(2)}</Text>
           </View>
-        )
-      )}
-
+          <TouchableOpacity onPress={() => {console.log('Submit')}} style={styles.captureButton}>
+            <Icon name="checkmark" size={35} color="white" />
+          </TouchableOpacity>
+        </>
+        }
         </>
         }
     </GestureHandlerRootView>
@@ -177,41 +201,29 @@ const styles = StyleSheet.create({
   captureButton: {
     width: 60,
     height: 60,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderColor: "rgba(255,255,255,0.5)",
+    backgroundColor: "rgba(199, 249, 204, 0.7)",
+    borderColor: "rgba(141, 153, 174, 1)",
     borderWidth: 4,
     borderRadius: 60,
-    alignSelf: 'center',
-    position: 'absolute',
-    bottom: 50
-  },
-  flashButton: {
+    // alignSelf: 'center',
+    right: 0.2*screenWidth,
     position: 'absolute',
     bottom: 50,
-    right: 30
-  },
-  revButton: {
-    position: 'absolute',
-    bottom: 50,
-    left: 30
-  },
-  volumeButton: {
-    position: 'absolute',
-    bottom: 150,
-    right: 30
-  },
-  timeContainer: {
-    position: 'absolute',
-    top: 50,
-    right: 30,
-    width: 30,
-    height: 30,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderColor: "rgba(255,255,255,0.5)",
-    borderWidth: 1,
     justifyContent: 'center',
+    alignItems: 'center'
+  },
+  detectionFrameLabel: {
+    backgroundColor: "rgba(141, 153, 174, 0.8)",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: 3
+    position: 'absolute',
+    bottom: 50,
+    left: 0.2*screenWidth,
+    width: 180,
+    height: 60,
+    borderRadius: 5,
+    padding: 10,
   },
   zoomContainer: {
     height: zoomBarHeight,
@@ -244,13 +256,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 5,
     borderColor: 'rgba(255, 255, 255, 0.8)',
-    boxShadow: 'red',
-    elevation: 5,
-    zIndex: 9,
-  },
-  detectionFrameLabel: {
-    backgroundColor: 'rgba(220, 220, 220, 0.7)',
-    textTransform: 'capitalize'
+    zIndex: 9
   },
 });
 
