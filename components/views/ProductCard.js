@@ -15,8 +15,8 @@ const ProductCard = ({ product }) => {
             <Text style={styles.cardHeader}>{product.name}</Text>
             <TouchableOpacity onPress={() => {}}>
                 <View style={styles.cardMoretext}>
-                    <Text style={{fontSize: 14, marginRight: '2%', color: 'black' }}>Show More</Text>
-                    <Icon name="arrow-forward" size={18} color="#D4AF37" />
+                  <Text style={{fontSize: 14, marginRight: '2%', color: 'black' }}>Show More</Text>
+                  <Icon name="arrow-forward" size={18} color="#D4AF37" />
                 </View>
             </TouchableOpacity>
             </View>

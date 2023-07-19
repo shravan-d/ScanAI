@@ -26,15 +26,19 @@ function RatingScreen( { route } ) {
             <Image source={{ uri: `file://${path}` }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         </View>
         <RatingView rating={rating} setRating={setRating}/>
+        
         {rating > 3 && 
-            productList1.map((product, index) => (
+            <><Text style={styles.cardHeader}>Similar Products</Text>
+            {productList1.map((product, index) => (
                 <ProductCard key={index} product={product} />
             ))}
+            </>}
         {rating > 0 && rating < 4 && 
-            productList2.map((product, index) => (
+            <><Text style={styles.cardHeader}>Similar Products</Text>
+            {productList2.map((product, index) => (
                 <ProductCard key={index} product={product} />
-            ))   
-        }
+            ))}
+            </>}
         
     </SafeAreaView>
   );

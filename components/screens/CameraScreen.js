@@ -24,8 +24,8 @@ const CameraScreen = ( ) => {
   const [camPerm, setCamPerm] = useState('not-determined');
   const [focusPos, setFocusPos] = useState({x: -1, y: -1, show: false});
   const [object, setObject] = useState(null);
-  const navigation = useNavigation();
   const [newObject, setNewObject] = useState(null);
+  const navigation = useNavigation();
   const devices = useCameraDevices()
   const device = devices.back
   const camera = useRef()
@@ -92,6 +92,7 @@ const CameraScreen = ( ) => {
         skipMetadata: true
       })
       navigation.navigate('RatingScreen', { path: snapshot.path });
+      setObject(null);
     } catch (e) {
       console.error('Failed to take photo!', e);
     }
