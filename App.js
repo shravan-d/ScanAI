@@ -4,6 +4,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {NavigationContainer} from '@react-navigation/native';
 import LandingScreen from './components/screens/LandingScreen';
 import CameraScreen from './components/screens/CameraScreen';
+import RatingScreen from './components/screens/RatingScreen';
 
 const Stack = createNativeStackNavigator();  
 var screenWidth = Dimensions.get('screen').width;
@@ -73,6 +74,11 @@ const App = () => {
             <Stack.Screen
                 name="CameraScreen"
                 component={CameraScreen}
+                options={{headerShown: false}}
+            />
+            <Stack.Screen
+                name="RatingScreen"
+                component={RatingScreen}
                 options={{headerShown: false}}
             />
             </Stack.Navigator>       

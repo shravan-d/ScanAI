@@ -1,5 +1,5 @@
 import 'react-native-reanimated'
-import { React, useRef, useState, useEffect} from 'react';
+import { React, useRef, useState, useEffect, useCallback} from 'react';
 import { detectObjects } from 'vision-camera-realtime-object-detection';
 import {StyleSheet, View, Dimensions, Text, TouchableOpacity} from 'react-native';
 import { useCameraDevices, Camera, useFrameProcessor } from 'react-native-vision-camera';
@@ -8,6 +8,7 @@ import Animated from 'react-native-reanimated';
 import {GestureHandlerRootView} from 'react-native-gesture-handler'
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 
 const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera)
 Reanimated.addWhitelistedNativeProps({
@@ -23,16 +24,20 @@ const CameraScreen = ( ) => {
   const [camPerm, setCamPerm] = useState('not-determined');
   const [focusPos, setFocusPos] = useState({x: -1, y: -1, show: false});
   const [object, setObject] = useState(null);
+  const navigation = useNavigation();
   const [newObject, setNewObject] = useState(null);
+  const devices = useCameraDevices()
+  const device = devices.back
+  const camera = useRef()
 
   const frameProcessorConfig = {
     modelFile: 'lite-model_efficientdet_lite4_detection_metadata_2.tflite',
-    scoreThreshold: 0.4,
+    scoreThreshold: 0.3,
     maxResults: 1,
     numThreads: 4,
   };
 
-  const updateObjects = (object, detectedObjects) => {
+  const updateObjects = (detectedObjects) => {
     if (detectedObjects.length == 0){
       setNewObject(null);
       return;
@@ -49,7 +54,7 @@ const CameraScreen = ( ) => {
   const frameProcessor = useFrameProcessor((frame) => {
     'worklet';
     const detectedObjects = detectObjects(frame, frameProcessorConfig);
-    runOnJS(updateObjects)(object, detectedObjects);
+    runOnJS(updateObjects)(detectedObjects);
   }, []);
 
 
@@ -75,24 +80,22 @@ const CameraScreen = ( ) => {
     setCamPerm(status);
   }   
 
-  const devices = useCameraDevices()
-  const device = devices.back
-  const camera = useRef()
-
   useEffect(() => { 
     getCamPermission();
   }, []);
 
-  let lastPress = 0;
-  const onDoublePress = () => {
-    const time = new Date().getTime();
-    const delta = time - lastPress;
-    const DOUBLE_PRESS_DELAY = 400;
-    if (delta < DOUBLE_PRESS_DELAY) {
-        setCameraPos(!cameraPos);
+  const takePhoto = useCallback(async () => {
+    try {
+      if (camera.current == null) throw new Error('Camera ref is null!');
+      const snapshot = await camera.current.takeSnapshot({
+        quality: 100,
+        skipMetadata: true
+      })
+      navigation.navigate('RatingScreen', { path: snapshot.path });
+    } catch (e) {
+      console.error('Failed to take photo!', e);
     }
-    lastPress = time;
-  };
+  }, [camera]);
 
   const y = useSharedValue(zoomBarHeight-15);
   const zoom = useSharedValue(0)
@@ -150,8 +153,7 @@ const CameraScreen = ( ) => {
   }
 
   return (
-    <GestureHandlerRootView style={styles.container} onStartShouldSetResponder={() => onDoublePress()} 
-      onTouchStart={(event)=>{focusCamera(event.nativeEvent)}}>
+    <GestureHandlerRootView style={styles.container} onTouchStart={(event)=>{focusCamera(event.nativeEvent)}}>
         {camPerm ==='authorized' && device != null &&
         <>
         <ReanimatedCamera
@@ -182,7 +184,7 @@ const CameraScreen = ( ) => {
             <Text style={{textTransform: 'capitalize', fontSize: 18}}>{object.labels[0].label}</Text>
             <Text style={{fontSize: 18}}>{object.labels[0].confidence.toFixed(2)}</Text>
           </View>
-          <TouchableOpacity onPress={() => {console.log('Submit')}} style={styles.captureButton}>
+          <TouchableOpacity onPress={() => {takePhoto()}} style={styles.captureButton}>
             <Icon name="checkmark" size={35} color="white" />
           </TouchableOpacity>
         </>
